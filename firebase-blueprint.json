@@ -1,0 +1,260 @@
+{
+  "entities": {
+    "UserProfile": {
+      "title": "UserProfile",
+      "description": "Private authenticated customer profile synced with LPS STORE",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 160
+        },
+        "fullName": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "phone": {
+          "type": "string",
+          "maxLength": 30
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "fullName", "createdAt", "updatedAt"]
+    },
+    "AdminRoster": {
+      "title": "AdminRoster",
+      "description": "Trusted administrator directory indexed by Firebase Auth UID",
+      "type": "object",
+      "properties": {
+        "uid": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "email": {
+          "type": "string",
+          "format": "email",
+          "minLength": 3,
+          "maxLength": 160
+        },
+        "roleCode": {
+          "type": "string",
+          "enum": ["owner", "manager", "support"]
+        },
+        "isActive": {
+          "type": "boolean"
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["uid", "email", "roleCode", "isActive", "createdAt", "updatedAt"]
+    },
+    "CatalogGame": {
+      "title": "CatalogGame",
+      "description": "Public storefront game catalog entry",
+      "type": "object",
+      "properties": {
+        "gameId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "slug": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80,
+          "pattern": "^[a-z0-9\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "genre": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 60
+        },
+        "publisher": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 80
+        },
+        "isActive": {
+          "type": "boolean"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["gameId", "slug", "title", "genre", "publisher", "isActive", "updatedAt"]
+    },
+    "CatalogPackage": {
+      "title": "CatalogPackage",
+      "description": "Top-up currency package under a parent game",
+      "type": "object",
+      "properties": {
+        "packageId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "gameId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "priceInr": {
+          "type": "number"
+        },
+        "bonusBadge": {
+          "type": "string",
+          "maxLength": 40
+        },
+        "isActive": {
+          "type": "boolean"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": ["packageId", "gameId", "title", "priceInr", "isActive", "updatedAt"]
+    },
+    "TopupOrder": {
+      "title": "TopupOrder",
+      "description": "Customer top-up order record owned by the authenticated buyer",
+      "type": "object",
+      "properties": {
+        "orderNumber": {
+          "type": "string",
+          "minLength": 4,
+          "maxLength": 40,
+          "pattern": "^[a-zA-Z0-9\\-]+$"
+        },
+        "userId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "gameId": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128,
+          "pattern": "^[a-zA-Z0-9_\\-]+$"
+        },
+        "gameTitle": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "packageTitle": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 120
+        },
+        "quantity": {
+          "type": "integer"
+        },
+        "totalAmountInr": {
+          "type": "number"
+        },
+        "status": {
+          "type": "string",
+          "enum": [
+            "pending",
+            "payment_pending",
+            "payment_verified",
+            "processing",
+            "awaiting_delivery",
+            "completed",
+            "failed",
+            "cancelled",
+            "refund_pending",
+            "refunded"
+          ]
+        },
+        "paymentStatus": {
+          "type": "string",
+          "enum": ["unpaid", "created", "authorized", "paid", "failed", "refund_pending", "refunded"]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "orderNumber",
+        "userId",
+        "gameId",
+        "gameTitle",
+        "packageTitle",
+        "quantity",
+        "totalAmountInr",
+        "status",
+        "paymentStatus",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": { "$ref": "#/entities/UserProfile" },
+      "description": "Private customer profile keyed by Firebase UID; isolated from cross-user reads"
+    },
+    "/admins/{adminUid}": {
+      "schema": { "$ref": "#/entities/AdminRoster" },
+      "description": "Administrator role verification roster keyed by Firebase UID"
+    },
+    "/games/{gameId}": {
+      "schema": { "$ref": "#/entities/CatalogGame" },
+      "description": "Storefront game catalog documents readable publicly and writable only by admins"
+    },
+    "/games/{gameId}/packages/{packageId}": {
+      "schema": { "$ref": "#/entities/CatalogPackage" },
+      "description": "Currency top-up packages scoped under their parent game document"
+    },
+    "/orders/{orderId}": {
+      "schema": { "$ref": "#/entities/TopupOrder" },
+      "description": "Customer top-up orders strictly scoped by userId ownership or admin role"
+    }
+  }
+}

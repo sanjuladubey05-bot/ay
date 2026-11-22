@@ -1,0 +1,6 @@
+{
+  "name": "LPS STORE",
+  "description": "Commercial gaming top-up storefront and administrative foundation with PostgreSQL, role-based security, and Razorpay payment readiness.",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}

@@ -1,0 +1,239 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Global default-deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerifiedUser() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isBootstrappedOwner() {
+      return isVerifiedUser() && request.auth.token.email == 'sanjuladubey05@gmail.com';
+    }
+
+    function isAdmin() {
+      return isVerifiedUser() && (
+        isBootstrappedOwner() ||
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid))
+      );
+    }
+
+    function isValidUserProfile(data, userId) {
+      return data.keys().hasAll(['uid', 'email', 'fullName', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'fullName', 'phone', 'createdAt', 'updatedAt'])
+        && isValidId(data.uid)
+        && data.uid == userId
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 160
+        && data.fullName is string && data.fullName.size() >= 1 && data.fullName.size() <= 120
+        && (!('phone' in data) || (data.phone is string && data.phone.size() <= 30))
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidAdminRoster(data, adminUid) {
+      return data.keys().hasAll(['uid', 'email', 'roleCode', 'isActive', 'createdAt', 'updatedAt'])
+        && data.keys().hasOnly(['uid', 'email', 'roleCode', 'isActive', 'createdAt', 'updatedAt'])
+        && isValidId(data.uid)
+        && data.uid == adminUid
+        && data.email is string && data.email.size() >= 3 && data.email.size() <= 160
+        && data.roleCode in ['owner', 'manager', 'support']
+        && data.isActive is bool
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidCatalogGame(data, gameId) {
+      return data.keys().hasAll(['gameId', 'slug', 'title', 'genre', 'publisher', 'isActive', 'updatedAt'])
+        && data.keys().hasOnly(['gameId', 'slug', 'title', 'genre', 'publisher', 'isActive', 'updatedAt'])
+        && isValidId(data.gameId)
+        && data.gameId == gameId
+        && data.slug is string && data.slug.size() >= 1 && data.slug.size() <= 80 && data.slug.matches('^[a-z0-9\\-]+$')
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 120
+        && data.genre is string && data.genre.size() >= 1 && data.genre.size() <= 60
+        && data.publisher is string && data.publisher.size() >= 1 && data.publisher.size() <= 80
+        && data.isActive is bool
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidCatalogPackage(data, gameId, packageId) {
+      return data.keys().hasAll(['packageId', 'gameId', 'title', 'priceInr', 'isActive', 'updatedAt'])
+        && data.keys().hasOnly(['packageId', 'gameId', 'title', 'priceInr', 'bonusBadge', 'isActive', 'updatedAt'])
+        && isValidId(data.packageId)
+        && data.packageId == packageId
+        && isValidId(data.gameId)
+        && data.gameId == gameId
+        && data.title is string && data.title.size() >= 1 && data.title.size() <= 120
+        && data.priceInr is number && data.priceInr > 0 && data.priceInr <= 1000000
+        && (!('bonusBadge' in data) || (data.bonusBadge is string && data.bonusBadge.size() <= 40))
+        && data.isActive is bool
+        && data.updatedAt is timestamp;
+    }
+
+    function isValidTopupOrder(data) {
+      return data.keys().hasAll([
+          'orderNumber', 'userId', 'gameId', 'gameTitle', 'packageTitle',
+          'quantity', 'totalAmountInr', 'status', 'paymentStatus', 'createdAt', 'updatedAt'
+        ])
+        && data.keys().hasOnly([
+          'orderNumber', 'userId', 'gameId', 'gameTitle', 'packageTitle',
+          'quantity', 'totalAmountInr', 'status', 'paymentStatus', 'createdAt', 'updatedAt'
+        ])
+        && data.orderNumber is string && data.orderNumber.size() >= 4 && data.orderNumber.size() <= 40 && data.orderNumber.matches('^[a-zA-Z0-9\\-]+$')
+        && isValidId(data.userId)
+        && isValidId(data.gameId)
+        && data.gameTitle is string && data.gameTitle.size() >= 1 && data.gameTitle.size() <= 120
+        && data.packageTitle is string && data.packageTitle.size() >= 1 && data.packageTitle.size() <= 120
+        && data.quantity is int && data.quantity >= 1 && data.quantity <= 20
+        && data.totalAmountInr is number && data.totalAmountInr > 0 && data.totalAmountInr <= 20000000
+        && data.status in ['pending', 'payment_pending', 'payment_verified', 'processing', 'awaiting_delivery', 'completed', 'failed', 'cancelled', 'refund_pending', 'refunded']
+        && data.paymentStatus in ['unpaid', 'created', 'authorized', 'paid', 'failed', 'refund_pending', 'refunded']
+        && data.createdAt is timestamp
+        && data.updatedAt is timestamp;
+    }
+
+    match /users/{userId} {
+      allow get: if isValidId(userId) && (isOwner(userId) || isAdmin());
+      allow list: if false;
+      allow create: if isVerifiedUser()
+        && isValidId(userId)
+        && isOwner(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().email == request.auth.token.email
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time;
+      allow update: if isVerifiedUser()
+        && isValidId(userId)
+        && isValidUserProfile(incoming(), userId)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'phone', 'updatedAt'])) ||
+          (isOwner(userId) && incoming().email == existing().email && incoming().diff(existing()).affectedKeys().hasOnly(['fullName', 'phone', 'updatedAt']))
+        );
+      allow delete: if isValidId(userId) && isAdmin();
+    }
+
+    match /admins/{adminUid} {
+      allow get: if isValidId(adminUid) && (isOwner(adminUid) || isAdmin());
+      allow list: if false;
+      allow create: if isVerifiedUser()
+        && isValidId(adminUid)
+        && isValidAdminRoster(incoming(), adminUid)
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && isAdmin();
+      allow update: if isVerifiedUser()
+        && isValidId(adminUid)
+        && isValidAdminRoster(incoming(), adminUid)
+        && incoming().uid == existing().uid
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['email', 'roleCode', 'isActive', 'updatedAt'])
+        && isAdmin();
+      allow delete: if isValidId(adminUid) && isAdmin();
+    }
+
+    match /games/{gameId} {
+      allow get: if isValidId(gameId);
+      allow list: if isSignedIn();
+      allow create: if isVerifiedUser()
+        && isValidId(gameId)
+        && isValidCatalogGame(incoming(), gameId)
+        && incoming().updatedAt == request.time
+        && isAdmin();
+      allow update: if isVerifiedUser()
+        && isValidId(gameId)
+        && isValidCatalogGame(incoming(), gameId)
+        && incoming().gameId == existing().gameId
+        && incoming().updatedAt == request.time
+        && incoming().diff(existing()).affectedKeys().hasOnly(['slug', 'title', 'genre', 'publisher', 'isActive', 'updatedAt'])
+        && isAdmin();
+      allow delete: if isValidId(gameId) && isAdmin();
+
+      match /packages/{packageId} {
+        allow get: if isValidId(gameId) && isValidId(packageId);
+        allow list: if isSignedIn();
+        allow create: if isVerifiedUser()
+          && isValidId(gameId)
+          && isValidId(packageId)
+          && isValidCatalogPackage(incoming(), gameId, packageId)
+          && incoming().updatedAt == request.time
+          && exists(/databases/$(database)/documents/games/$(gameId))
+          && isAdmin();
+        allow update: if isVerifiedUser()
+          && isValidId(gameId)
+          && isValidId(packageId)
+          && isValidCatalogPackage(incoming(), gameId, packageId)
+          && incoming().packageId == existing().packageId
+          && incoming().gameId == existing().gameId
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'priceInr', 'bonusBadge', 'isActive', 'updatedAt'])
+          && exists(/databases/$(database)/documents/games/$(gameId))
+          && isAdmin();
+        allow delete: if isValidId(gameId) && isValidId(packageId) && isAdmin();
+      }
+    }
+
+    match /orders/{orderId} {
+      allow get: if isValidId(orderId) && isSignedIn() && (existing().userId == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (
+        resource.data.userId == request.auth.uid ||
+        (request.auth.token.email_verified == true && request.auth.token.email == 'sanjuladubey05@gmail.com')
+      );
+      allow create: if isVerifiedUser()
+        && isValidId(orderId)
+        && isValidTopupOrder(incoming())
+        && incoming().userId == request.auth.uid
+        && incoming().status == 'pending'
+        && incoming().paymentStatus == 'unpaid'
+        && incoming().createdAt == request.time
+        && incoming().updatedAt == request.time
+        && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+        && exists(/databases/$(database)/documents/games/$(incoming().gameId));
+      allow update: if isVerifiedUser()
+        && isValidId(orderId)
+        && isValidTopupOrder(incoming())
+        && incoming().userId == existing().userId
+        && incoming().orderNumber == existing().orderNumber
+        && incoming().gameId == existing().gameId
+        && incoming().createdAt == existing().createdAt
+        && incoming().updatedAt == request.time
+        && (
+          (isAdmin() && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'paymentStatus', 'updatedAt'])) ||
+          (
+            isOwner(existing().userId)
+            && !(existing().status in ['completed', 'refunded', 'cancelled'])
+            && existing().status == 'pending'
+            && incoming().status == 'cancelled'
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt'])
+          )
+        );
+      allow delete: if false;
+    }
+  }
+}
